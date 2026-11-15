@@ -143,6 +143,35 @@ def test_reentry_restarts_a_harness_that_exited(project, fake_herdr):
     assert {"restarting_missing", "started"} <= {item.get("action") for item in result["actions"]}
 
 
+def test_live_role_refuses_harness_change_until_old_client_exits(project, fake_herdr):
+    options = ["--preset", "cc-codex", "--only-role", "main", "--only-role", "engineer", "--only-role", "writer"]
+    first = team_start(project, fake_herdr, *options)
+    assert first.returncode == 0, first.stderr
+    before = json.loads(first.stdout)["roles"]
+    commands_before = len(json.loads(fake_herdr["state"].read_text())["commands"])
+
+    refused = team_start(project, fake_herdr, "--role", "writer=omp", "--only-role", "writer")
+    assert refused.returncode != 0
+    assert "still runs claude" in refused.stderr
+    assert "exit that agent" in refused.stderr
+    after_refusal = json.loads(fake_herdr["state"].read_text())
+    assert not any(command[:2] in (["agent", "start"], ["agent", "prompt"])
+                   for command in after_refusal["commands"][commands_before:])
+    assert json.loads((project / ".aris/workbench/launch.json").read_text())["roles"]["writer"]["harness"] == "claude"
+
+    _mark_agent_gone(fake_herdr, before, "writer")
+    switched = team_start(project, fake_herdr, "--role", "writer=omp", "--only-role", "writer")
+    assert switched.returncode == 0, switched.stderr
+    result = json.loads(switched.stdout)
+    assert result["roles"]["writer"]["harness"] == "omp"
+    assert result["roles"]["writer"]["pane_id"] == before["writer"]["pane_id"]
+    assert "harness_changed" in {item.get("action") for item in result["actions"]}
+    starts = [command for command in json.loads(fake_herdr["state"].read_text())["commands"]
+              if command[:2] == ["agent", "start"]]
+    assert starts[-1][starts[-1].index("--kind") + 1] == "omp"
+    assert starts[-1][starts[-1].index("--pane") + 1] == before["writer"]["pane_id"]
+
+
 def test_pending_start_retries_a_stale_role_and_clears_pending(project, fake_herdr):
     options = ["--preset", "cc-codex", "--only-role", "main", "--only-role", "engineer", "--only-role", "writer"]
     first = team_start(project, fake_herdr, *options)

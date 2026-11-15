@@ -139,6 +139,37 @@ def test_custom_existing_or_pending_reentry_keeps_original_contract(monkeypatch,
     assert restored["roles"][2]["model"] == "original-writer"
 
 
+def test_existing_workbench_can_change_one_role_client(monkeypatch, tmp_path):
+    project = tmp_path / "bound project"
+    project.mkdir()
+    bound = {
+        "host": "herdr", "session": "original-session", "preset": "cc-codex",
+        "roles": {
+            "main": {"harness": "claude", "requested_model": None, "inputs": {
+                "task": "Original task", "skills": [], "recovery": [], "write_scope": str(project)}},
+            "engineer": {"harness": "codex", "requested_model": None, "inputs": {
+                "task": "Wait for main", "skills": [], "recovery": [], "write_scope": str(project / "outputs/engineer")}},
+            "writer": {"harness": "claude", "requested_model": "original-writer-model", "inputs": {
+                "task": "Wait for main", "skills": [], "recovery": [], "write_scope": str(project / "outputs/writer")}},
+        },
+    }
+    selection, prompts = select(
+        monkeypatch, tmp_path, ["1", str(project), "2", "3", "4", "1", "1"],
+        caps(clients=("claude", "codex", "omp")), bound)
+    assert selection.resume_existing
+    args = cli.parser().parse_args(selection.arguments)
+    assert cli.assignments(args.role) == {"writer": "omp"}
+    assert any("如何继续" in prompt for prompt in prompts)
+    (project / ".aris/workbench").mkdir(parents=True)
+    (project / ".aris/workbench/launch.json").write_text(json.dumps(bound))
+    plan = cli.make_plan(args)
+    roles = {item["role"]: item for item in plan["roles"]}
+    assert {role: roles[role]["harness"] for role in ("main", "engineer", "writer")} == {
+        "main": "claude", "engineer": "codex", "writer": "omp"}
+    assert roles["writer"]["model"] is None
+    assert roles["main"]["task"] == "Original task"
+
+
 def test_custom_main_partial_fake_start_recovers_original_owner_and_full_team(project, fake_herdr):
     binary = fake_herdr["binary"]
     code = binary.read_text()

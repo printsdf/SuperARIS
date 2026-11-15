@@ -208,6 +208,19 @@ def select_custom_roles(available: dict, previous: dict[str, str]) -> list[tuple
     return selected
 
 
+def select_role_harness(role: str, available: dict, previous: str) -> str:
+    kinds = list(LABELS)
+    options = [tr(LABELS[kind]) + (tr("（未找到，暂不可用）") if not available.get(kind) else "")
+               for kind in kinds]
+    default = kinds.index(previous) + 1 if previous in kinds else 1
+    while True:
+        choice = choose(tr("{role} — 新客户端", role=ui.role_label(role)), options, default)
+        kind = kinds[choice - 1]
+        if available.get(kind):
+            return kind
+        print(tr("请选择本机已找到的客户端，或 b 返回项目选择。"))
+
+
 def _preview_pad(text: str, width: int) -> str:
     cells = sum(2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in text)
     return text + " " * max(0, width - cells)
@@ -313,26 +326,61 @@ def run() -> Selection | None:
                 for role, record in records.items():
                     model = record.get("model") if pending else tr("原模型保持")
                     print(f"  {ui.role_label(role)} / {tr(LABELS.get(record['harness'], record['harness']))} / {model or tr('沿用已有设置')}")
-                action = choose(tr("如何继续"), [tr("继续原工作台"), tr("更换项目"), tr("取消")])
-                if action == 2:
+                changed: dict[str, str] = {}
+                resume = False
+                while True:
+                    labels = [tr("继续原工作台")]
+                    actions = ["continue"]
+                    if host == "herdr":
+                        labels.append(tr("更换角色 harness"))
+                        actions.append("harness")
+                    labels += [tr("更换项目"), tr("取消")]
+                    actions += ["project", "cancel"]
+                    action = actions[choose(tr("如何继续"), labels) - 1]
+                    if action == "project":
+                        break
+                    if action == "cancel":
+                        return None
+                    if action == "continue":
+                        resume = True
+                        break
+                    role_names = list(records)
+                    chosen_role = role_names[choose(
+                        tr("要更换哪个角色"), [ui.role_label(role) for role in role_names]) - 1]
+                    previous = records[chosen_role]["harness"]
+                    chosen_kind = select_role_harness(chosen_role, available, previous)
+                    if chosen_kind == previous:
+                        print(tr("客户端未改变。"))
+                    else:
+                        changed[chosen_role] = chosen_kind
+                        print(tr("更换后需先退出该角色的旧客户端；旧客户端仍在运行时，启动会拒绝更换。"))
+                if not resume:
                     continue
-                if action == 3:
-                    return None
                 print(tr("\n[4/4] 恢复摘要"))
-                print(tr("项目：{project}\n操作：继续原负责人和未完事项；保留任务、模型与现有窗口。", project=project))
+                if changed:
+                    print(tr("项目：{project}\n操作：更换所选角色的客户端；其他角色、任务与现有窗口保持不变；新客户端使用原生默认模型。", project=project))
+                    print(tr("更换：{change}", change=", ".join(
+                        f"{role}: {tr(LABELS[records[role]['harness']])} → {tr(LABELS[kind])}"
+                        for role, kind in changed.items())))
+                else:
+                    print(tr("项目：{project}\n操作：继续原负责人和未完事项；保留任务、模型与现有窗口。", project=project))
                 print(tr("宿主：{host}", host="Orca" if host == "orca" else "Herdr"))
                 ready = dependency_summary(available, host)
-                action = choose(tr("请选择"), [tr("启动（继续原工作台）"), tr("返回修改"), tr("取消")])
+                action = choose(tr("请选择"), [tr("启动") if changed else tr("启动（继续原工作台）"),
+                                               tr("返回修改"), tr("取消")])
                 if action == 2:
                     continue
                 if action == 3 or not ready:
                     return None
+                overrides = []
+                for role, kind in changed.items():
+                    overrides += ["--role", f"{role}={kind}"]
                 if pending:
                     arguments = pending["arguments"]
                     if not isinstance(arguments, list) or arguments[:2] != ["start", str(project)]:
                         raise ValueError(tr("待完成启动记录与当前项目不符"))
-                    return Selection(arguments, False, ui_language=ui.language)
-                arguments = ["start", str(project), "--session", old["session"]]
+                    return Selection([*arguments, *overrides], False, ui_language=ui.language)
+                arguments = ["start", str(project), "--session", old["session"], *overrides]
                 if host == "orca":
                     arguments += ["--host", "orca"]
                 return Selection(arguments, False, True, ui.language)

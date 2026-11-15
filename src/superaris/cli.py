@@ -63,20 +63,30 @@ def make_plan(args: argparse.Namespace) -> dict:
     remembered = ({item["role"]: item for item in pending.get("roles", [])}
                   if pending else current.get("roles", {}))
     preset = args.preset or current.get("preset", "codex")
-    # Ordinary reentry retains membership. Selecting roles can add preset
-    # members without replacing the choices recorded for existing members.
-    retain_team = bool(remembered) and not args.role and (
+    requested_roles = assignments(args.role)
+    # Ordinary reentry retains membership. Explicit role assignments change
+    # only the named roles; a different preset still starts a new mapping.
+    retain_team = bool(remembered) and (
         args.preset is None or args.preset == current.get("preset"))
     roles = ({role: record["harness"] for role, record in remembered.items()}
-             if retain_team else {**PRESETS[preset], **assignments(args.role)})
-    if retain_team and args.only_role is not None:
-        for role in args.only_role:
-            if role in PRESETS[preset]:
-                roles.setdefault(role, PRESETS[preset][role])
+             if retain_team else {**PRESETS[preset], **requested_roles})
+    if retain_team:
+        roles.update(requested_roles)
+        if args.only_role is not None:
+            for role in args.only_role:
+                if role in PRESETS[preset]:
+                    roles.setdefault(role, PRESETS[preset][role])
     inherited = remembered if retain_team else {}
+    explicit_models = assignments(args.model)
     models = {role: record.get("model", record.get("requested_model"))
               for role, record in inherited.items()}
-    models.update(assignments(args.model))
+    models.update(explicit_models)
+    # A model ID belongs to its client. Do not carry it across a harness change
+    # unless the caller explicitly supplied the new model.
+    for changed_role, kind in roles.items():
+        previous = remembered.get(changed_role, {}).get("harness")
+        if previous and previous != kind and changed_role not in explicit_models:
+            models.pop(changed_role, None)
     role_tasks = assignments(args.role_task)
     scopes = assignments(args.write_scope)
     selected = args.only_role if args.only_role is not None else list(roles)
@@ -117,7 +127,8 @@ def parser(prog: str = "superaris") -> argparse.ArgumentParser:
     s.add_argument("--orca-bin", help="explicit official Orca CLI launcher; otherwise discover the installed app")
     s.add_argument("--owner", help="explicit existing main agent name/pane to adopt after verification")
     s.add_argument("--preset", choices=PRESETS, help="new-team mapping (default: codex); reconnect preserves the recorded team")
-    s.add_argument("--role", action="append", default=[], metavar="ROLE=HARNESS")
+    s.add_argument("--role", action="append", default=[], metavar="ROLE=HARNESS",
+                   help="new team: choose a client; existing team: change only the named roles (exit the old client first)")
     s.add_argument("--only-role", action="append", choices=None, help="activate only the listed roles; new teams default to main, engineer and writer")
     s.add_argument("--model", action="append", default=[], metavar="ROLE=MODEL")
     s.add_argument("--skill", action="append", default=[])

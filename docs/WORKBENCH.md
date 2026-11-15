@@ -21,6 +21,12 @@ any role, including main. Native CLI settings remain the default; manual IDs
 are also available. Back retains the selected model, and existing teams keep
 their recorded requests rather than adopting new menu choices.
 
+To change one role's client on an existing Herdr team, exit that role's native
+client, then run `superaris start PROJECT --role ROLE=HARNESS`. Other roles,
+tasks, scopes and panes stay unchanged. The new client uses its native default
+model unless `--model ROLE=MODEL` is also supplied. A live old client is never
+replaced automatically; startup refuses the change until it is exited.
+
 ## Explicit commands
 
 `start PROJECT --plan` previews without starting native processes. Every new

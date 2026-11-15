@@ -7,7 +7,7 @@ import re
 import shutil
 import subprocess
 
-from .client import Herdr, HerdrError, foreground, verify_owner
+from .client import Herdr, HerdrError, OwnerVerificationError, foreground, verify_owner
 from .context import prepare_context
 from .delivery import deliver
 from .state import directory, launch_lock, read, write
@@ -83,6 +83,33 @@ def _shell_pane(client: Herdr, pane_id: str, project: Path) -> bool:
         item.get("pid") and item.get("cwd") and Path(item["cwd"]) == project
         and shell_name(item) in shells
         for item in processes)
+
+
+def _check_harness_changes(client: Herdr, current: dict, selected_roles: list[dict],
+                           project: Path, host: str) -> None:
+    """Refuse a live client replacement before any role is mutated."""
+    for selected in selected_roles:
+        if not selected.get("active"):
+            continue
+        role, kind = selected["role"], selected["harness"]
+        existing = current["roles"].get(role)
+        if not existing or existing.get("harness") == kind:
+            continue
+        if host != "herdr":
+            raise HerdrError("Changing a role's harness is supported for Herdr workbenches only")
+        try:
+            verify_owner(client, existing, project)
+        except OwnerVerificationError as exc:
+            if exc.owner_state == "shell" and _shell_pane(client, existing.get("pane_id"), project):
+                continue
+            raise
+        except HerdrError as exc:
+            if _missing_owner(exc):
+                continue
+            raise
+        raise HerdrError(
+            f"Role {role} still runs {existing.get('harness')} in pane {existing.get('pane_id')}; "
+            f"exit that agent before switching it to {kind}, then rerun")
 
 
 def start(plan: dict, args, *, stop_event=None) -> dict:
@@ -169,6 +196,7 @@ def start(plan: dict, args, *, stop_event=None) -> dict:
                 first, second = Path(item["write_scope"]), Path(other["write_scope"])
                 if first.is_relative_to(second) or second.is_relative_to(first):
                     raise ValueError("Collaborator write scopes overlap; assign disjoint directories or worktrees")
+        _check_harness_changes(client, current, selected_roles, project, host)
         if not current.get("pending_start") and any(
                 item["active"] and item["role"] not in current["roles"] for item in selected_roles):
             # Record the complete confirmed team before a native start can
@@ -202,6 +230,16 @@ def start(plan: dict, args, *, stop_event=None) -> dict:
                 inputs["excluded_scopes"] = [item["write_scope"] for item in collaborator_scopes]
             if existing and host == "orca" and not existing.get("pane_id"):
                 raise HerdrError("Original Orca launch outcome is unknown; inspect its saved receipt and workspace before recovering this role")
+            if existing and existing.get("harness") != kind:
+                # The preflight proved the old client is gone or its pane is an
+                # idle shell. Replace the recorded owner and start the new client.
+                pane_id = existing.get("pane_id")
+                reuse_pane = pane_id if pane_id and _shell_pane(client, pane_id, project) else None
+                actions.append({"role": role, "action": "harness_changed",
+                                "from": existing.get("harness"), "to": kind, "pane_id": pane_id})
+                current["roles"].pop(role, None)
+                save_binding(project, current)
+                existing = None
             live = None
             if existing:
                 try:
@@ -255,6 +293,15 @@ def start(plan: dict, args, *, stop_event=None) -> dict:
             context = prepare_context(project, role, kind, selected["task"], selected["skills"],
                                       selected["recovery"], aris_repo, [selected["write_scope"]], **({"workbench_host": host} if host == "orca" else {}))
             _exclude_writers(context, role, collaborator_scopes)
+            pending_intent = current.get("pending_start")
+            if pending_intent:
+                for item in pending_intent.get("roles", []):
+                    if item.get("role") == role and item.get("harness") != kind:
+                        item.update(harness=kind, model=selected["model"], task=selected["task"],
+                                    write_scope=selected["write_scope"])
+                        if isinstance(pending_intent.get("arguments"), list):
+                            pending_intent["arguments"] += ["--role", f"{role}={kind}"]
+                        break
             if host == "orca":
                 record = {"host": "orca", "harness": kind, "created": True,
                           "automation_owned": args.automation_owned, "context": context,

@@ -69,6 +69,22 @@ def test_plan_defaults_to_three_roles_and_retains_explicit_only_role(project, pr
     assert {str(path.relative_to(project)): path.read_bytes() for path in project.rglob("*") if path.is_file()} == before
 
 
+def test_plan_changes_only_named_role_and_drops_its_old_model(project, fake_herdr):
+    initial = start(project, fake_herdr, "--preset", "cc-codex",
+                    "--model", "writer=original-writer-model",
+                    "--task", "Keep this task.")
+    assert {name: record["harness"] for name, record in initial["roles"].items()} == TEAMS["cc-codex"]
+    plan = invoke(project, "--plan", "--role", "writer=omp")
+    assert plan.returncode == 0, plan.stderr
+    roles = {item["role"]: item for item in json.loads(plan.stdout)["roles"]}
+    assert {name: roles[name]["harness"] for name in TEAMS["cc-codex"]} == {
+        "main": "claude", "engineer": "codex", "writer": "omp"}
+    assert roles["writer"]["model"] is None
+    assert roles["main"]["task"] == "Keep this task."
+    saved = json.loads((project / ".aris/workbench/launch.json").read_text())
+    assert saved["roles"]["writer"]["harness"] == "claude"
+
+
 @pytest.mark.parametrize("preset", TEAMS)
 def test_actual_default_starts_each_role_once_with_scoped_waiting_and_same_layout(project, fake_herdr, preset):
     preset_options = [] if preset == "codex" else ["--preset", preset]
