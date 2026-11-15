@@ -88,6 +88,31 @@ def test_executable_suffix_and_node_wrapper_keep_owner_identity(tmp_path):
         client.verify_owner(Owner(), {"pane_id": "w1:p1", "harness": "codex", "pid": 123, "native_session_id": "original"}, tmp_path)
 
 
+def test_antigravity_executable_and_node_wrapper_are_recognized_as_agy(tmp_path):
+    for argv in (
+        ["/opt/homebrew/Caskroom/antigravity-cli/1.5.9/antigravity", "--prompt-interactive", "Read"],
+        ["node", "/opt/antigravity/antigravity.js", "--prompt-interactive", "Read"],
+        ["antigravity-cli", "--prompt-interactive", "Read"],
+    ):
+        result = client.foreground({"foreground_processes": [
+            {"argv": ["node", "/opt/codegraph.js", "serve"], "cwd": str(tmp_path), "pid": 10},
+            {"argv": argv, "cwd": str(tmp_path), "pid": 11}]}, "agy")
+        assert result["kind"] == "agy" and result["pid"] == 11
+
+
+def test_foreground_error_names_pane_kind_and_processes(tmp_path):
+    with pytest.raises(client.HerdrError) as error:
+        client.foreground({"pane_id": "w1:p4", "foreground_processes": [
+            {"argv": ["node", "/opt/codegraph.js", "serve", "--mcp"], "cwd": str(tmp_path), "pid": 11},
+            {"argv": ["bash"], "cwd": str(tmp_path), "pid": 12}]}, "agy")
+    text = str(error.value)
+    assert "pane w1:p4" in text
+    assert "expected agy" in text
+    assert "matched none" in text
+    assert "pid=11 node codegraph.js" in text
+    assert "pid=12 bash" in text
+
+
 def test_omp_prompt_preserving_restart_rebinds_same_role(tmp_path):
     class Owner:
         def json(self, *args):

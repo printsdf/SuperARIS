@@ -118,14 +118,14 @@ def startup_error(project: Path) -> str | None:
     try:
         inner = json.loads(text)
     except (TypeError, ValueError):
-        return str(text)[:240]
+        return str(text)[:600]
     if isinstance(inner, dict):
         error = inner.get("error")
         if isinstance(error, dict) and error.get("message"):
-            return str(error["message"])[:240]
+            return str(error["message"])[:600]
         if inner.get("message"):
-            return str(inner["message"])[:240]
-    return str(text)[:240]
+            return str(inner["message"])[:600]
+    return str(text)[:600]
 
 
 def show_capabilities(available: dict) -> None:

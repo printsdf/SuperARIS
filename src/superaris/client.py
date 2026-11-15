@@ -137,18 +137,60 @@ def install_herdr() -> None:
     raise HerdrError("No supported installer detected. Install Herdr TUI from https://herdr.dev/tui/docs/install/ and rerun; no other product was installed.")
 
 
+HARNESS_EXECUTABLES = {
+    "codex": ("codex",),
+    "claude": ("claude", "claude-code"),
+    "agy": ("agy", "antigravity", "antigravity-cli"),
+    "omp": ("omp",),
+}
+
+
+def _executable_name(value: str) -> str:
+    return Path(value).name.lower().removesuffix(".exe").removesuffix(".cmd")
+
+
+def _matches_harness(executable: str, argv: list[str], harness: str) -> bool:
+    aliases = HARNESS_EXECUTABLES[harness]
+    if executable in aliases:
+        return True
+    if executable not in {"node", "nodejs"} or len(argv) < 2:
+        return False
+    script = Path(str(argv[1]))
+    return script.name.lower() in {f"{alias}.js" for alias in aliases} or any(
+        alias in (part.lower() for part in script.parts) for alias in aliases)
+
+
+def _foreground_error(info: dict, kind: str | None, matches: list[dict]) -> str:
+    pane = info.get("pane_id") or "unknown pane"
+    expected = kind or "/".join(HARNESS_EXECUTABLES)
+    found = ", ".join(f"{match['kind']} pid={match['pid']}" for match in matches) or "none"
+    processes = []
+    for item in (info.get("foreground_processes") or [])[:8]:
+        argv = item.get("argv") or ([item["argv0"]] if item.get("argv0") else [])
+        if not argv:
+            processes.append(f"pid={item.get('pid')} (no argv)")
+            continue
+        first = _executable_name(str(argv[0]))
+        second = ""
+        if len(argv) > 1:
+            value = str(argv[1])
+            second = Path(value).name if "/" in value or "\\" in value else value[:40]
+        cwd = item.get("cwd") or "unknown cwd"
+        processes.append(f"pid={item.get('pid')} {first} {second} cwd={cwd}".replace("  ", " ").strip())
+    detail = "; ".join(processes) or "none"
+    return (f"Expected one recognizable foreground agent in pane {pane}; expected {expected}; "
+            f"matched {found}; processes: {detail}")
+
+
 def foreground(info: dict, kind: str | None = None) -> dict:
     matches = []
     for item in info.get("foreground_processes", []):
-        argv = item.get("argv") or ([item["argv0"]] if item.get("argv0") else [])
+        argv = [str(value) for value in (item.get("argv") or ([item["argv0"]] if item.get("argv0") else []))]
         if not argv or not item.get("cwd"):
             continue
-        executable = Path(argv[0]).name.lower()
-        executable = executable.removesuffix(".exe").removesuffix(".cmd")
-        for harness in ([kind] if kind else ["codex", "claude", "agy", "omp"]):
-            if executable == harness or (executable in {"node", "nodejs"} and len(argv) > 1
-                    and (Path(argv[1]).name == f"{harness}.js" or
-                         harness == "claude" and "claude-code" in Path(argv[1]).parts)):
+        executable = _executable_name(argv[0])
+        for harness in ([kind] if kind else list(HARNESS_EXECUTABLES)):
+            if _matches_harness(executable, argv, harness):
                 cwd = Path(item["cwd"])
                 if harness == "codex":
                     for index, arg in enumerate(argv):
@@ -162,7 +204,7 @@ def foreground(info: dict, kind: str | None = None) -> dict:
                             break
                 matches.append({"kind": harness, "cwd": str(cwd.resolve()), "pid": item.get("pid")})
     if len(matches) != 1:
-        raise HerdrError("Expected one recognizable foreground agent; inspect actual pane before sending input")
+        raise HerdrError(_foreground_error(info, kind, matches))
     return matches[0]
 
 
