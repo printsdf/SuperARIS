@@ -191,7 +191,15 @@ def verify_owner(client: Herdr, role: dict, project: Path) -> dict:
     if role.get("native_session_id") and native and role["native_session_id"] != native:
         raise OwnerVerificationError("Native session changed; inspect ownership before rebinding", "changed")
     if role.get("pid") and role["pid"] != live["pid"]:
-        raise OwnerVerificationError("Foreground process changed; inspect ownership before rebinding", "changed")
+        prompt = (role.get("context") or {}).get("prompt")
+        # OMP can restart itself in the same pane and keeps its exact launch
+        # prompt. Other harness pid changes still require an explicit handoff.
+        preserved = role.get("harness") == "omp" and bool(prompt) and any(
+            prompt in argument
+            for item in info.get("foreground_processes", [])
+            for argument in item.get("argv") or [])
+        if not preserved:
+            raise OwnerVerificationError("Foreground process changed; inspect ownership before rebinding", "changed")
     return {**role, **live, "native_session_id": native or role.get("native_session_id"),
             "status": agent.get("agent_status", "unknown"), "name": agent.get("name", role.get("name"))}
 

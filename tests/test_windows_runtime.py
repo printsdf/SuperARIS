@@ -88,6 +88,32 @@ def test_executable_suffix_and_node_wrapper_keep_owner_identity(tmp_path):
         client.verify_owner(Owner(), {"pane_id": "w1:p1", "harness": "codex", "pid": 123, "native_session_id": "original"}, tmp_path)
 
 
+def test_omp_prompt_preserving_restart_rebinds_same_role(tmp_path):
+    class Owner:
+        def json(self, *args):
+            if args[:2] == ("agent", "get"):
+                return {"agent": {"pane_id": "w1:p4", "agent": "omp"}}
+            return {"process_info": {"foreground_processes": [{
+                "argv": ["omp", "Read the packet."], "cwd": str(tmp_path), "pid": 124}]}}
+    role = {"pane_id": "w1:p4", "harness": "omp", "pid": 123,
+            "context": {"prompt": "Read the packet."}}
+    live = client.verify_owner(Owner(), role, tmp_path)
+    assert live["pid"] == 124
+
+
+def test_omp_pid_change_without_recorded_prompt_is_rejected(tmp_path):
+    class Owner:
+        def json(self, *args):
+            if args[:2] == ("agent", "get"):
+                return {"agent": {"pane_id": "w1:p4", "agent": "omp"}}
+            return {"process_info": {"foreground_processes": [{
+                "argv": ["omp", "Different prompt."], "cwd": str(tmp_path), "pid": 124}]}}
+    role = {"pane_id": "w1:p4", "harness": "omp", "pid": 123,
+            "context": {"prompt": "Read the packet."}}
+    with pytest.raises(client.HerdrError, match="process changed"):
+        client.verify_owner(Owner(), role, tmp_path)
+
+
 def test_wizard_cancel_does_not_install_or_write(tmp_path, monkeypatch):
     import builtins
     answers = iter(["2", "q"])
