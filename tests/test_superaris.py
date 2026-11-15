@@ -110,3 +110,59 @@ def test_omp_harness_is_selectable_and_started_as_omp(project, fake_herdr):
     started = next(args for args in commands if args[:2] == ["agent", "start"])
     assert started[started.index("--kind") + 1] == "omp"
     assert started[-1] == roles["main"]["context"]["prompt"]
+
+
+def _mark_agent_gone(fake, roles, role):
+    state = json.loads(fake["state"].read_text())
+    record = roles[role]
+    agent = next(item for item in state["agents"].values() if item["pane_id"] == record["pane_id"])
+    state["agents"].pop(agent["name"])
+    state.setdefault("missing_agents", []).append(record["pane_id"])
+    state.setdefault("shell_panes", []).append(record["pane_id"])
+    fake["state"].write_text(json.dumps(state))
+
+
+def test_reentry_restarts_a_harness_that_exited(project, fake_herdr):
+    options = ["--preset", "cc-codex", "--only-role", "main", "--only-role", "engineer", "--only-role", "writer"]
+    first = team_start(project, fake_herdr, *options)
+    assert first.returncode == 0, first.stderr
+    before = json.loads(first.stdout)["roles"]
+    _mark_agent_gone(fake_herdr, before, "engineer")
+    starts_before = sum(command[:2] == ["agent", "start"]
+                        for command in json.loads(fake_herdr["state"].read_text())["commands"])
+
+    retry = team_start(project, fake_herdr)
+    assert retry.returncode == 0, retry.stderr
+    result = json.loads(retry.stdout)
+    assert result["roles"]["engineer"]["pane_id"] == before["engineer"]["pane_id"]
+    commands = json.loads(fake_herdr["state"].read_text())["commands"]
+    starts = [command for command in commands if command[:2] == ["agent", "start"]]
+    assert len(starts) == starts_before + 1
+    assert starts[-1][starts[-1].index("--kind") + 1] == "codex"
+    assert starts[-1][starts[-1].index("--pane") + 1] == before["engineer"]["pane_id"]
+    assert {"restarting_missing", "started"} <= {item.get("action") for item in result["actions"]}
+
+
+def test_pending_start_retries_a_stale_role_and_clears_pending(project, fake_herdr):
+    options = ["--preset", "cc-codex", "--only-role", "main", "--only-role", "engineer", "--only-role", "writer"]
+    first = team_start(project, fake_herdr, *options)
+    assert first.returncode == 0, first.stderr
+    roles = json.loads(first.stdout)["roles"]
+    binding_path = project / ".aris/workbench/launch.json"
+    binding = json.loads(binding_path.read_text())
+    binding["pending_start"] = {
+        "arguments": ["start", str(project), "--session", "isolated-test",
+                      "--role", "main=claude", "--role", "engineer=codex", "--role", "writer=claude"],
+        "roles": [{"role": role, "harness": record["harness"], "task": record["inputs"]["task"],
+                   "write_scope": record["inputs"]["write_scope"], "active": True}
+                  for role, record in binding["roles"].items()],
+    }
+    binding_path.write_text(json.dumps(binding))
+    _mark_agent_gone(fake_herdr, roles, "engineer")
+
+    retry = team_start(project, fake_herdr)
+    assert retry.returncode == 0, retry.stderr
+    final = json.loads(binding_path.read_text())
+    assert "pending_start" not in final
+    assert final["roles"]["engineer"]["pane_id"] == roles["engineer"]["pane_id"]
+    assert "restarting_missing" in {item.get("action") for item in json.loads(retry.stdout)["actions"]}

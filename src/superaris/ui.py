@@ -55,6 +55,8 @@ _EN = {
     "已有工作台记录不完整；请核对原项目记录，不会另建 owner。": "The existing workbench record is incomplete. Inspect the original project record; no new owner will be created.",
     "\n发现已有工作台：{name}（保留原负责人、模型、任务和布局）": "\nExisting workbench found: {name} (preserve its owners, models, tasks and layout)",
     "上次启动尚未完成，将继续原先选择的角色；已启动角色不重复派工。": "The previous startup is incomplete. Continue the originally selected roles without dispatching started roles again.",
+    "\n上次启动失败：{error}": "\nPrevious startup failed: {error}",
+    "将保留原选择，并重试未完成的角色。": "The original selections are kept, and incomplete roles will be retried.",
     "原模型保持": "Original model preserved", "如何继续": "How to continue",
     "继续原工作台": "Resume existing workbench", "更换项目": "Choose another project", "取消": "Cancel",
     "\n[4/4] 恢复摘要": "\n[4/4] Recovery summary",

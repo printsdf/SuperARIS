@@ -411,8 +411,14 @@ def test_retained_blocked_wizard_resume_restores_original_three_role_selection(e
     assert "writer=gemini-4-argon-high" in arguments
     assert "engineer=outputs/engineer" in arguments
     assert "writer=outputs/writer" in arguments
+    error_path = project / ".aris/workbench/startup-error.json"
+    error_path.write_text(json.dumps({"error": json.dumps({
+        "error": {"code": "agent_not_found", "message": "agent target w1:p2 not found"},
+        "id": "cli:agent:get"})}))
     second = terminal()
     select_project(second, project)
+    second.expect("上次启动失败")
+    second.expect("agent target w1:p2 not found")
     second.expect("如何继续")
     second.line("1")
     second.expect("恢复摘要")
@@ -423,6 +429,7 @@ def test_retained_blocked_wizard_resume_restores_original_three_role_selection(e
     assert second.finish() == 0, second.text
     complete = json.loads(launch.read_text())
     assert not complete.get("pending_start")
+    assert not error_path.exists()
     assert set(complete["roles"]) == {"main", "engineer", "writer"}
     assert complete["roles"]["main"]["pane_id"] == original_pane
     for name, model in (("engineer", "gpt-6.1-sol"), ("writer", "gemini-4-argon-high")):

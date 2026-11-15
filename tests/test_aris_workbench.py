@@ -147,6 +147,11 @@ def output(result):
     print(json.dumps({"result": result}))
     raise SystemExit(0)
 
+def error(code, message):
+    save()
+    print(json.dumps({"error": {"code": code, "message": message}}))
+    raise SystemExit(0)
+
 def option(flag):
     return args[args.index(flag) + 1]
 
@@ -183,11 +188,24 @@ elif args[:2] == ["agent", "start"]:
         "argv": [kind, *args[args.index("--") + 1:]],
         "cwd": state["project"],
     }
+    if pane in state.get("missing_agents", []):
+        state["missing_agents"].remove(pane)
+    if pane in state.get("shell_panes", []):
+        state["shell_panes"].remove(pane)
     output({"agent": state["agents"][name]})
-elif args[:2] in (["agent", "get"], ["pane", "get"]):
-    output({"agent" if args[0] == "agent" else "pane": owner(args[2])})
+elif args[:2] == ["agent", "get"]:
+    if args[2] in state.get("missing_agents", []):
+        error("agent_not_found", f"agent target {args[2]} not found")
+    output({"agent": owner(args[2])})
+elif args[:2] == ["pane", "get"]:
+    output({"pane": owner(args[2])})
 elif args[:2] == ["pane", "process-info"]:
-    agent = owner(option("--pane"))
+    pane = option("--pane")
+    if pane in state.get("shell_panes", []):
+        output({"process_info": {"pane_id": pane, "foreground_processes": [{
+            "argv": ["-zsh"], "argv0": "zsh", "cwd": state["project"], "pid": 999,
+        }]}})
+    agent = owner(pane)
     output({"process_info": {"pane_id": agent["pane_id"], "foreground_processes": [{
         "argv": agent["argv"], "cwd": agent["cwd"], "pid": agent["pid"],
     }]}})

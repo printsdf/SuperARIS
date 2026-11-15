@@ -60,6 +60,31 @@ def _agent_name(project: Path, role: str, agents: list[dict]) -> str:
     raise HerdrError("No free live agent name; inspect the selected session")
 
 
+def _missing_owner(exc: HerdrError) -> bool:
+    """True only when Herdr has no agent for the recorded pane."""
+    text = str(exc)
+    return "agent_not_found" in text or "pane_not_found" in text
+
+
+def _shell_pane(client: Herdr, pane_id: str, project: Path) -> bool:
+    """Allow a retry in a dead role's pane only when it is now an idle project shell."""
+    try:
+        info = client.json("pane", "process-info", "--pane", pane_id)["process_info"]
+    except HerdrError:
+        return False
+    shells = {"powershell", "pwsh", "cmd", "sh", "bash", "zsh", "fish"}
+
+    def shell_name(item: dict) -> str:
+        value = item.get("argv0") or (item.get("argv") or [""])[0]
+        return Path(value).name.lower().removesuffix(".exe").removesuffix(".cmd").lstrip("-")
+
+    processes = info.get("foreground_processes") or []
+    return bool(processes) and all(
+        item.get("pid") and item.get("cwd") and Path(item["cwd"]) == project
+        and shell_name(item) in shells
+        for item in processes)
+
+
 def start(plan: dict, args, *, stop_event=None) -> dict:
     project = Path(plan["project"])
     with launch_lock(project):
@@ -170,14 +195,30 @@ def start(plan: dict, args, *, stop_event=None) -> dict:
                 continue
             role, kind = selected["role"], selected["harness"]
             existing = current["roles"].get(role)
+            reuse_pane = None
             inputs = {"task": selected["task"], "skills": selected["skills"], "recovery": selected["recovery"],
                       "write_scope": selected["write_scope"]}
             if role == "main" and collaborator_scopes:
                 inputs["excluded_scopes"] = [item["write_scope"] for item in collaborator_scopes]
+            if existing and host == "orca" and not existing.get("pane_id"):
+                raise HerdrError("Original Orca launch outcome is unknown; inspect its saved receipt and workspace before recovering this role")
+            live = None
             if existing:
-                if host == "orca" and not existing.get("pane_id"):
-                    raise HerdrError("Original Orca launch outcome is unknown; inspect its saved receipt and workspace before recovering this role")
-                live = verify_owner(client, existing, project)
+                try:
+                    live = verify_owner(client, existing, project)
+                except HerdrError as exc:
+                    if host != "herdr" or not _missing_owner(exc) or not existing.get("created"):
+                        raise
+                    # Herdr no longer has this native agent. Retry it instead of
+                    # failing every reentry on the stale record.
+                    pane_id = existing.get("pane_id")
+                    reuse_pane = pane_id if pane_id and _shell_pane(client, pane_id, project) else None
+                    actions.append({"role": role, "action": "restarting_missing",
+                                    "pane_id": pane_id, "reason": str(exc)})
+                    current["roles"].pop(role, None)
+                    save_binding(project, current)
+                    existing = None
+            if existing:
                 current["roles"][role] = live
                 if existing.get("delivery", {}).get("phase") in {"attempting", "unknown"}:
                     actions.append({"role": role, "action": "pending_unknown", "delivery": existing["delivery"]})
@@ -270,7 +311,9 @@ def start(plan: dict, args, *, stop_event=None) -> dict:
                 workbench_title = tr("工作台", lang=ui_language)
             else:
                 role_title, workbench_title = role, "Workbench"
-            if "workspace_id" not in current:
+            if reuse_pane:
+                pane = reuse_pane
+            elif "workspace_id" not in current:
                 display_name = f"SuperARIS · {args.name}" if getattr(args, "name", None) else f"SuperARIS {project.name}"
                 created = client.json("workspace", "create", "--cwd", str(project), "--label", display_name,
                                       "--env", f"ARIS_REPO={aris_repo}", "--no-focus")
@@ -338,6 +381,7 @@ def start(plan: dict, args, *, stop_event=None) -> dict:
             # each original role record; clearing startup intent is not receipt
             # acceptance. Interactive startup keeps its existing completion path.
             current.pop("pending_start", None)
+            (directory(project) / "startup-error.json").unlink(missing_ok=True)
         save_binding(project, current)
     return {"mode": "running", "project": str(project), "session": current["session"],
             **({"host": "orca"} if host == "orca" else {}),

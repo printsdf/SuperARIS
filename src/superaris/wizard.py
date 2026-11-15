@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 import shutil
@@ -105,6 +106,26 @@ def recovery_capabilities(available: dict, bound: dict) -> dict:
         return available
     found = discover_orca(explicit)
     return {**available, "orca": found.get("cli"), "orca_recorded": explicit}
+
+
+def startup_error(project: Path) -> str | None:
+    """Read the last launcher failure for a pending retry reminder."""
+    from .state import directory, read
+    value = read(directory(project) / "startup-error.json", {})
+    text = value.get("error") if isinstance(value, dict) else None
+    if not text:
+        return None
+    try:
+        inner = json.loads(text)
+    except (TypeError, ValueError):
+        return str(text)[:240]
+    if isinstance(inner, dict):
+        error = inner.get("error")
+        if isinstance(error, dict) and error.get("message"):
+            return str(error["message"])[:240]
+        if inner.get("message"):
+            return str(inner["message"])[:240]
+    return str(text)[:240]
 
 
 def show_capabilities(available: dict) -> None:
@@ -281,6 +302,10 @@ def run() -> Selection | None:
                     continue
                 print(tr("\n发现已有工作台：{name}（保留原负责人、模型、任务和布局）", name=project.name))
                 if pending:
+                    saved_error = startup_error(project)
+                    if saved_error:
+                        print(tr("\n上次启动失败：{error}", error=saved_error))
+                        print(tr("将保留原选择，并重试未完成的角色。"))
                     print(tr("上次启动尚未完成，将继续原先选择的角色；已启动角色不重复派工。"))
                     records = {item["role"]: item for item in pending["roles"]}
                 else:
@@ -648,8 +673,9 @@ def launch(plan: dict, args) -> dict | None:
 
 def completed(project: Path) -> None:
     from .runtime import binding, save_binding
-    from .state import launch_lock
+    from .state import directory, launch_lock
     with launch_lock(project):
         current = binding(project)
         current.pop("pending_start", None)
         save_binding(project, current)
+        (directory(project) / "startup-error.json").unlink(missing_ok=True)
