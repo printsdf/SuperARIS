@@ -36,7 +36,7 @@ original handoff before use.
 
 A small role-neutral managed pointer follows native project instructions:
 Codex `AGENTS.md` (an existing nonempty `AGENTS.override.md` takes priority),
-CC `CLAUDE.md`, AGY `GEMINI.md`. Existing user text is retained. No global skills
+CC `CLAUDE.md`, AGY `GEMINI.md`, OMP `AGENTS.md`. Existing user text is retained. No global skills
 or configuration changes are needed. Native discovery helps future startup;
 a current session must explicitly reread the pointer, current role/navigation,
 original task records and required skills. This is not permanent model memory.

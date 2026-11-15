@@ -195,3 +195,15 @@ def test_verified_busy_or_blocked_main_does_not_trigger_exit_notice(main_exit_pr
     assert "owner_notice" not in result
     assert not any(a[:2] == ("notification", "show") for a in fake.calls)
     assert (directory(main_exit_project) / "launch.json").read_bytes() == before
+
+
+def test_foreground_accepts_argv0_only_agent_process(tmp_path):
+    info = {"foreground_processes": [{"argv0": "claude", "cwd": str(tmp_path), "pid": 123}]}
+    live = transport.foreground(info, "claude")
+    assert live["kind"] == "claude" and live["pid"] == 123
+
+
+def test_foreground_recognizes_omp_in_explicit_and_default_harness_lists(tmp_path):
+    info = {"foreground_processes": [{"argv": ["omp"], "cwd": str(tmp_path), "pid": 124}]}
+    assert transport.foreground(info, "omp")["kind"] == "omp"
+    assert transport.foreground(info)["kind"] == "omp"

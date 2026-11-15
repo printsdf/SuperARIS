@@ -82,8 +82,8 @@ def make_plan(args: argparse.Namespace) -> dict:
     selected = args.only_role if args.only_role is not None else list(roles)
     if (set(selected) | models.keys() | role_tasks.keys() | scopes.keys()) - roles.keys():
         raise ValueError("role/model selection names a role outside the preset or --role entries")
-    if any(kind not in {"codex", "claude", "agy"} for kind in roles.values()):
-        raise ValueError("supported harnesses: codex, claude, agy")
+    if any(kind not in {"codex", "claude", "agy", "omp"} for kind in roles.values()):
+        raise ValueError("supported harnesses: codex, claude, agy, omp")
     return {
         "mode": "plan", "project": str(project), "session": args.session, "host": host,
         "preset": preset, "task": args.task or inherited.get("main", {}).get("task") or inherited.get("main", {}).get("inputs", {}).get("task") or "Recover this project and continue only its already authorized work.",
@@ -105,7 +105,7 @@ def parser(prog: str = "superaris") -> argparse.ArgumentParser:
     p = _ArgumentParser(prog=prog, description="SuperARIS project workbench: native owners, ARIS skills and existing MCP collaboration.",
                                 epilog="交互启动 / Interactive: superaris (or superaris start). 脚本用法 / Scripts: superaris start PROJECT [options].")
     sub = p.add_subparsers(dest="command", required=True)
-    update = sub.add_parser("update", help="update this installation from official SuperARIS main")
+    update = sub.add_parser("update", help="update this installation from its configured Git fork")
     update.add_argument("--check", action="store_true", help="check installed/latest Git revision without installing")
     s = sub.add_parser("start", help="start or reconnect the selected project owners")
     p.start_parser = s

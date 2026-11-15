@@ -95,3 +95,18 @@ def test_adopted_owner_retains_legacy_name_and_original_topology(project, fake_h
     commands = json.loads(fake_herdr["state"].read_text())["commands"]
     assert not any(args[:2] in (["workspace", "create"], ["tab", "create"], ["pane", "split"],
                                ["tab", "rename"], ["pane", "rename"], ["agent", "start"]) for args in commands)
+
+
+def test_omp_harness_is_selectable_and_started_as_omp(project, fake_herdr):
+    plan = invoke(SUPERARIS, "start", project, "--plan", "--role", "writer=omp")
+    assert plan.returncode == 0, plan.stderr
+    assert {role["role"]: role["harness"] for role in json.loads(plan.stdout)["roles"]}["writer"] == "omp"
+
+    result = team_start(project, fake_herdr, "--role", "main=omp", "--only-role", "main")
+    assert result.returncode == 0, result.stderr
+    roles = json.loads(result.stdout)["roles"]
+    assert roles["main"]["harness"] == "omp"
+    commands = json.loads(fake_herdr["state"].read_text())["commands"]
+    started = next(args for args in commands if args[:2] == ["agent", "start"])
+    assert started[started.index("--kind") + 1] == "omp"
+    assert started[-1] == roles["main"]["context"]["prompt"]

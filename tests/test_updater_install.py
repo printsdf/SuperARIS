@@ -46,8 +46,8 @@ class GitInstallation:
         self.git("add", "."); self.git("commit", "-m", "Old same-version installation")
         self.old = self.git("rev-parse", "HEAD").stdout.strip()
         self.git("config", "--global", f"url.{self.source.as_uri()}.insteadOf",
-                 "https://github.com/wanshuiyin/SuperARIS.git")
-        spec = f"git+https://github.com/wanshuiyin/SuperARIS.git@{self.old}"
+                 "https://github.com/printsdf/SuperARIS.git")
+        spec = f"git+https://github.com/printsdf/SuperARIS.git@{self.old}"
         if manager == "pipx":
             self.run([shutil.which("pipx"), "install", "--python", sys.executable, spec], "install-old")
             self.prefix = root / "pipx/venvs/superaris"

@@ -18,7 +18,7 @@ _PROJECT_FILES = (
     "AGENTS.override.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", "NEXT_SESSION.md", "HANDOFF.md",
     "RESEARCH_BRIEF.md",
 )
-_STARTUP_FILES = {"codex": "AGENTS.md", "claude": "CLAUDE.md", "agy": "GEMINI.md"}
+_STARTUP_FILES = {"codex": "AGENTS.md", "claude": "CLAUDE.md", "agy": "GEMINI.md", "omp": "AGENTS.md"}
 _ENTRY_BEGIN = b"<!-- ARIS workbench recovery: begin -->"
 _ENTRY_END = b"<!-- ARIS workbench recovery: end -->"
 _LEGACY_RECOVERY_BINDING = (
@@ -85,6 +85,8 @@ def _native_roots(project: Path, harness: str) -> list[Path]:
         return [project / ".agents/skills", home / ".codex/skills", home / ".agents/skills"]
     if harness == "claude":
         return [project / ".claude/skills", home / ".claude/skills"]
+    if harness == "omp":
+        return [project / ".agents/skills", home / ".agents/skills", home / ".omp/agent/skills"]
     # AGY must never mistake a Codex .agents mirror for its own native source.
     return [home / ".gemini/config/skills"]
 
@@ -315,7 +317,7 @@ def prepare_context(
     if workbench_host not in {"herdr", "orca"}:
         raise ValueError(f"Unsupported workbench host: {workbench_host!r}")
     role = _name(role, "role")
-    if harness not in {"codex", "claude", "agy"}:
+    if harness not in {"codex", "claude", "agy", "omp"}:
         raise ValueError(f"Unsupported harness: {harness!r}")
     repo = Path(repo).expanduser().resolve() if repo is not None else resolve_aris_repo()
     host_root = repo / "skills" / "skills-codex" if harness == "codex" else repo / "skills"

@@ -140,12 +140,12 @@ def install_herdr() -> None:
 def foreground(info: dict, kind: str | None = None) -> dict:
     matches = []
     for item in info.get("foreground_processes", []):
-        argv = item.get("argv") or []
+        argv = item.get("argv") or ([item["argv0"]] if item.get("argv0") else [])
         if not argv or not item.get("cwd"):
             continue
         executable = Path(argv[0]).name.lower()
         executable = executable.removesuffix(".exe").removesuffix(".cmd")
-        for harness in ([kind] if kind else ["codex", "claude", "agy"]):
+        for harness in ([kind] if kind else ["codex", "claude", "agy", "omp"]):
             if executable == harness or (executable in {"node", "nodejs"} and len(argv) > 1
                     and (Path(argv[1]).name == f"{harness}.js" or
                          harness == "claude" and "claude-code" in Path(argv[1]).parts)):

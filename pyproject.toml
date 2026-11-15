@@ -27,8 +27,8 @@ test = ["pytest>=7"]
 superaris = "superaris.cli:main"
 
 [project.urls]
-Repository = "https://github.com/wanshuiyin/SuperARIS"
-Issues = "https://github.com/wanshuiyin/SuperARIS/issues"
+Repository = "https://github.com/printsdf/SuperARIS"
+Issues = "https://github.com/printsdf/SuperARIS/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

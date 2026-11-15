@@ -12,7 +12,7 @@ import sys
 import tempfile
 
 
-REPOSITORY = "https://github.com/wanshuiyin/SuperARIS.git"
+REPOSITORY = "https://github.com/printsdf/SuperARIS.git"
 _PROBE = """import importlib.metadata as m,json,sys
 d=m.distribution('superaris')
 u=json.loads(d.read_text('direct_url.json') or '{}')
@@ -46,7 +46,7 @@ def installation() -> dict:
     if not direct.get("vcs_info") and not any(
             value.partition(",")[2].strip().rstrip("/").removesuffix(".git").lower() == REPOSITORY.removesuffix(".git").lower()
             for value in dist.metadata.get_all("Project-URL", [])):
-        raise ValueError("Cannot identify this package as the official SuperARIS distribution; use its original installer.")
+        raise ValueError("Cannot identify this package as the configured SuperARIS distribution; use its original installer.")
     pipx_file = prefix / "pipx_metadata.json"
     manager = "pipx" if pipx_file.is_file() else "pip"
     if pipx_file.is_file():
@@ -68,12 +68,12 @@ def latest_revision() -> str:
                                 env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
                                 capture_output=True, text=True, encoding="utf-8", timeout=45)
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError("Official SuperARIS check timed out; no update attempted") from exc
+        raise RuntimeError("SuperARIS update check timed out; no update attempted") from exc
     if result.returncode:
-        raise RuntimeError("Cannot check official SuperARIS main: " + result.stderr.strip())
+        raise RuntimeError("Cannot check SuperARIS main: " + result.stderr.strip())
     fields = result.stdout.split()
     if len(fields) != 2 or fields[1] != "refs/heads/main" or not re.fullmatch(r"[0-9a-f]{40}", fields[0]):
-        raise RuntimeError("Official Git source did not return a main commit; no update attempted")
+        raise RuntimeError("Git source did not return a main commit; no update attempted")
     return fields[0]
 
 
@@ -122,7 +122,7 @@ def update(check: bool = False) -> int:
     target = latest_revision()
     print(f"SuperARIS {current['version']} @ {current['revision'] or 'unknown revision'}", flush=True)
     print(f"Installation: {current['manager']} — {current['prefix']}", flush=True)
-    print(f"Official main: {target}", flush=True)
+    print(f"Source main: {target}", flush=True)
     if current["revision"] == target:
         print("Already current.", flush=True)
         return 0

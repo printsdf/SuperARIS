@@ -293,7 +293,7 @@ def start(plan: dict, args, *, stop_event=None) -> dict:
                 else:
                     created = client.json("tab", "create", "--workspace", current["workspace_id"], "--cwd", str(project), "--label", f"SuperARIS · {role_title}", "--no-focus")
                     pane = created["root_pane"]["pane_id"]
-            harness_label = {"claude": "Claude Code", "codex": "Codex", "agy": "Antigravity"}[kind]
+            harness_label = {"claude": "Claude Code", "codex": "Codex", "agy": "Antigravity", "omp": "Oh My Pi"}[kind]
             client.json("pane", "rename", pane, f"{role_title} · {harness_label}")
             name = _agent_name(project, role, client.snapshot().get("agents", []))
             record = {"pane_id": pane, "harness": kind, "name": name, "created": True,

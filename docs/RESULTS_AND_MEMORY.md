@@ -29,7 +29,7 @@ an opt-out; `receiver --action start` explicitly re-enables it. Manual `listen`
 is a bounded diagnostic and refuses a second receiver while the managed one is
 active. Human-owned inputs receive notices. With explicit automation ownership,
 Codex and Herdr AGY can receive automatic follow-up when the original owner is
-idle and its verified input is empty; CC and Orca AGY remain notice-based.
+idle and its verified input is empty; CC, Oh My Pi and Orca AGY remain notice-based.
 Use the existing [control handoff](WORKBENCH.md#input-ownership) to change input
 ownership. A draft revokes automation; clearing it alone does not re-enable it.
 

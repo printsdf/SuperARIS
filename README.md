@@ -16,7 +16,7 @@
 
 ## 1. 🚀 Quick Start
 
-Have Python 3.10+, Git and [pipx](https://pipx.pypa.io/stable/installation/) ready, plus your chosen agent CLIs (`codex`, `claude`, `agy`) with model access configured. Install once, then open the wizard:
+Have Python 3.10+, Git and [pipx](https://pipx.pypa.io/stable/installation/) ready, plus your chosen agent CLIs (`codex`, `claude`, `agy`, `omp`) with model access configured. Install once, then open the wizard:
 
 ```bash
 pipx install "git+https://github.com/wanshuiyin/SuperARIS.git"
@@ -64,7 +64,7 @@ Built on [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep
 
 Your main agent holds the research direction and coordinates the work. Codex can implement experiments and check evidence; Gemini can discuss the argument and write substantial paper sections. The main role can also execute or code directly within its authorized scope. Each collaborator has its own ongoing session, so you can work directly with the teammate you need and continue the discussion where you left off.
 
-Every new team has three roles: main, engineer and **Research & Writing** (`writer`). Recommended presets offer an all-Codex team, Claude Code main/writer with Codex engineering, or Claude Code / Codex / Antigravity. Choose **Custom team** in the wizard to assign Codex, Claude Code or Antigravity to each role independently, including an AGY main and teams without Codex. Each role keeps its own model choice and session. For any AGY role, the wizard offers Gemini 4 Argon High, Carbon High and Hydrogen High alongside manual IDs; keeping the native CLI settings remains the default. Temporary MCP workers and fresh reviewers remain available alongside the persistent team.
+Every new team has three roles: main, engineer and **Research & Writing** (`writer`). Recommended presets offer an all-Codex team, Claude Code main/writer with Codex engineering, or Claude Code / Codex / Antigravity. Choose **Custom team** in the wizard to assign Codex, Claude Code, Antigravity or Oh My Pi (`omp`) to each role independently, including an AGY main and teams without Codex. Each role keeps its own model choice and session. For any AGY role, the wizard offers Gemini 4 Argon High, Carbon High and Hydrogen High alongside manual IDs; keeping the native CLI settings remains the default. Temporary MCP workers and fresh reviewers remain available alongside the persistent team.
 
 The research-and-writing role can define problems, develop candidate methods and derivations, suggest experiments that distinguish hypotheses, and write the paper. For example, main delegates method discussion alongside a baseline experiment, checks the returned evidence, adjusts the next assignment, then collects evidence-backed writing for a fresh MCP review. Proposals and decisions stay in the existing project record. This responsibility works with any configured client or model.
 
@@ -90,7 +90,7 @@ These use your configured tools and keep ARIS's review and acceptance criteria. 
 
 SuperARIS tracks registered tasks, result files, and reports while the original main session is running—even after you close the workbench window. Your main agent uses those updates to collect finished work, check the evidence, and continue the next authorized step.
 
-Human-controlled sessions receive notices. Explicitly automation-owned Codex sessions and Herdr AGY sessions can continue automatically when idle with a verified empty input; CC and Orca AGY use notices. [Receiving results and continuing work →](docs/RESULTS_AND_MEMORY.md)
+Human-controlled sessions receive notices. Explicitly automation-owned Codex sessions and Herdr AGY sessions can continue automatically when idle with a verified empty input; CC, Oh My Pi and Orca AGY use notices. [Receiving results and continuing work →](docs/RESULTS_AND_MEMORY.md)
 
 [![SuperARIS proactive collaboration: team and MCP reports reach the receiver, the original main agent verifies results and continues authorized work, and project records support recovery (Chinese labels).](assets/proactive-mechanism-zh.png)](assets/proactive-mechanism-zh.png)
 
@@ -112,7 +112,7 @@ Reopen a running team to continue its conversations, or give a new session the p
 
 ## 8. 📦 Install and open
 
-Requires Python 3.10+ on macOS, Linux or Windows, [Herdr](https://herdr.dev) (default) or [optional Orca Terminal v1](docs/ORCA.md), and your chosen native CLIs (`codex`, `claude`, `agy`) with model access configured.
+Requires Python 3.10+ on macOS, Linux or Windows, [Herdr](https://herdr.dev) (default) or [optional Orca Terminal v1](docs/ORCA.md), and your chosen native CLIs (`codex`, `claude`, `agy`, `omp`) with model access configured.
 
 ```bash
 pipx install 'git+https://github.com/wanshuiyin/SuperARIS.git'

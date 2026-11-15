@@ -18,7 +18,7 @@
 
 ## 1. 🚀 快速开始
 
-准备好 Python 3.10+、Git 和 [pipx](https://pipx.pypa.io/stable/installation/)，以及已配置模型访问的所选 Agent CLI（`codex`、`claude`、`agy`）。安装一次，再打开向导：
+准备好 Python 3.10+、Git 和 [pipx](https://pipx.pypa.io/stable/installation/)，以及已配置模型访问的所选 Agent CLI（`codex`、`claude`、`agy`、`omp`）。安装一次，再打开向导：
 
 ```bash
 pipx install "git+https://github.com/wanshuiyin/SuperARIS.git"
@@ -66,7 +66,7 @@ SuperARIS 基于 [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-
 
 主 Agent 把握研究方向、组织分工并回收成果。Codex 可以实现实验与核查证据，Gemini 可以共同讨论立意、组织论证并主写论文正文。主 Agent 也可以在授权范围内直接执行任务或编码。每个成员都有自己的常驻会话，你可以直接与它共创，让讨论接着已有上下文继续。
 
-新团队统一有主 Agent、工程与**研究与写作**（内部 `writer`）三个角色：推荐预设有全部 Codex、Claude Code 主控/研究写作配 Codex 工程，或 Claude Code / Codex / Antigravity。也可以在向导选择**自定义团队**，让三个角色各选 Codex、Claude Code 或 Antigravity，包括 AGY 主控以及没有 Codex 的组合。每个角色有独立的模型选择与会话；任意 AGY 角色均可在向导选择 Gemini 4 Argon High、Carbon High、Hydrogen High 或手填型号，默认仍沿用原生 CLI 设置。临时 MCP worker 和需要全新上下文的独立 reviewer 继续在后台协作。
+新团队统一有主 Agent、工程与**研究与写作**（内部 `writer`）三个角色：推荐预设有全部 Codex、Claude Code 主控/研究写作配 Codex 工程，或 Claude Code / Codex / Antigravity。也可以在向导选择**自定义团队**，让三个角色各选 Codex、Claude Code、Antigravity 或 Oh My Pi（`omp`），包括 AGY 主控以及没有 Codex 的组合。每个角色有独立的模型选择与会话；任意 AGY 角色均可在向导选择 Gemini 4 Argon High、Carbon High、Hydrogen High 或手填型号，默认仍沿用原生 CLI 设置。临时 MCP worker 和需要全新上下文的独立 reviewer 继续在后台协作。
 
 研究与写作角色可以定义问题、提出候选方法与推导草案、建议能区分假设的实验，并主写论文。例如主控并行派发方法讨论和基线实验，核验返回证据后调整后续派工，再组织基于结果的写作与 fresh MCP 审阅。待验证的想法、决定和交付沿原项目记录保存；这份职责可由任意已配置客户端或模型承担。
 
@@ -92,7 +92,7 @@ SuperARIS 基于 [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-
 
 项目运行期间，SuperARIS 跟踪已登记的任务、结果文件和交付报告。原主会话仍在运行时，关闭工作台窗口也不打断跟进。主 Agent 根据这些更新收回完成的工作、核对证据，再推进下一项已授权步骤。
 
-人工掌控的会话通过通知收件；显式交给自动化的 Codex 和 Herdr AGY 会话，在空闲且已验证输入框为空时可自动接续。CC 与 Orca AGY 仍通过通知收件。[收件与工作接续 →](docs/RESULTS_AND_MEMORY.md)
+人工掌控的会话通过通知收件；显式交给自动化的 Codex 和 Herdr AGY 会话，在空闲且已验证输入框为空时可自动接续。CC、Oh My Pi 与 Orca AGY 仍通过通知收件。[收件与工作接续 →](docs/RESULTS_AND_MEMORY.md)
 
 [![SuperARIS 主动协作机制：常驻团队与 MCP 交付，经 receiver 通知原主 Agent 验收与推进，并记录项目进度以供恢复。](assets/proactive-mechanism-zh.png)](assets/proactive-mechanism-zh.png)
 
@@ -114,7 +114,7 @@ SuperARIS 基于 [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-
 
 ## 8. 📦 安装与启动
 
-需要 Python 3.10+、macOS / Linux / Windows、[Herdr](https://herdr.dev)（默认）或[可选的 Orca Terminal v1 工作台](docs/ORCA.md)，以及配置好模型访问的所选原生 CLI（`codex`、`claude`、`agy`）。
+需要 Python 3.10+、macOS / Linux / Windows、[Herdr](https://herdr.dev)（默认）或[可选的 Orca Terminal v1 工作台](docs/ORCA.md)，以及配置好模型访问的所选原生 CLI（`codex`、`claude`、`agy`、`omp`）。
 
 ```bash
 pipx install 'git+https://github.com/wanshuiyin/SuperARIS.git'

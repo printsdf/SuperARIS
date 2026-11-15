@@ -224,7 +224,7 @@ def fake_herdr(tmp_path, project):
     }))
     binaries = tmp_path / "bin"
     binaries.mkdir()
-    for kind in ("codex", "claude", "agy"):
+    for kind in ("codex", "claude", "agy", "omp"):
         harness = binaries / kind
         harness.write_text(f"#!{sys.executable}\nraise SystemExit('native harness must not execute in tests')\n")
         harness.chmod(0o755)

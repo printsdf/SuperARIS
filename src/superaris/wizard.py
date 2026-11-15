@@ -28,7 +28,8 @@ class Selection:
     ui_language: str = "zh"
 
 
-LABELS = {"codex": "Codex", "claude": "Claude Code（CC）", "agy": "Antigravity（AGY）"}
+LABELS = {"codex": "Codex", "claude": "Claude Code（CC）", "agy": "Antigravity（AGY）",
+          "omp": "Oh My Pi（OMP）"}
 ROLES = ui.ROLE_LABELS
 COMBINATIONS = [
     ("仅 Codex（三角色）", "codex", [("main", "codex"), ("engineer", "codex"), ("writer", "codex")]),
@@ -65,7 +66,7 @@ def choose(prompt: str, options: list[str], default: int = 1) -> int:
 
 def capabilities() -> dict[str, str | None]:
     from .hosts import discover_orca
-    available = {kind: shutil.which(kind) for kind in ("herdr", "codex", "claude", "agy", "brew")}
+    available = {kind: shutil.which(kind) for kind in ("herdr", "codex", "claude", "agy", "omp", "brew")}
     found = discover_orca()
     available.update(orca=found.get("cli"), orca_app=found.get("app"))
     return available
@@ -108,8 +109,8 @@ def recovery_capabilities(available: dict, bound: dict) -> dict:
 
 def show_capabilities(available: dict) -> None:
     print(tr("\n本机客户端命令："))
-    for kind in ("codex", "claude", "agy"):
-        print(f"  {tr(LABELS[kind])}{tr('：')}{tr('已找到' if available[kind] else '未找到')}")
+    for kind in ("codex", "claude", "agy", "omp"):
+        print(f"  {tr(LABELS[kind])}{tr('：')}{tr('已找到' if available.get(kind) else '未找到')}")
     print(tr("登录与模型设置由各自客户端处理；CC 使用你的已有配置。"))
 
 
@@ -193,7 +194,7 @@ def _preview_pad(text: str, width: int) -> str:
 
 def layout(roles: list[tuple[str, str]]) -> None:
     print(tr("\n分工与布局预览："))
-    clients = {role: {"claude": "CC", "codex": "Codex", "agy": "AGY"}[kind] for role, kind in roles}
+    clients = {role: {"claude": "CC", "codex": "Codex", "agy": "AGY", "omp": "OMP"}[kind] for role, kind in roles}
     main = tr("主会话") + " / " + clients.get("main", "")
     engineer = tr("工程") + " / " + clients.get("engineer", "")
     writer = tr("研究与写作") + " / " + clients.get("writer", "")
@@ -327,7 +328,7 @@ def run() -> Selection | None:
             usable.append(any(available.get(kind) for kind in LABELS))
             options.append(tr("自定义团队（分别选择三个角色的客户端）"))
             if not any(usable):
-                print(tr("未找到可用的 Agent 客户端。请安装 Codex、Claude Code 或 Antigravity 中至少一种，并完成其原生登录。"))
+                print(tr("未找到可用的 Agent 客户端。请安装 Codex、Claude Code、Antigravity 或 Oh My Pi 中至少一种，并完成其原生登录。"))
                 return None
             print(tr("前三项是推荐预设；也可自定义每个角色。"))
             default = combo if usable[combo - 1] else usable.index(True) + 1
@@ -369,6 +370,8 @@ def run() -> Selection | None:
             print(tr("将打开所选工作台，加载项目与 ARIS 技能，并接收协作者后续结果。"))
             if any(kind == "claude" for _, kind in roles):
                 print(tr("CC 收到后续结果时会提示你查看。"))
+            if any(kind == "omp" for _, kind in roles):
+                print(tr("OMP 收到后续结果时会提示你查看。"))
             if any(kind == "agy" for _, kind in roles):
                 print(tr("AGY 默认通过通知收件；Herdr 中显式交给自动化后，可在已验证的空闲空输入框接续。")
                       if host == "herdr" else tr("Orca 中的 AGY 收到后续结果时会提示你查看。"))
